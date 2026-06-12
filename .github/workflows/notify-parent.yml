@@ -1,0 +1,17 @@
+name: Notify parent repo
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch submodule update to NNDD
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+          repository: NNDD-Rebuild/NNDD
+          event-type: submodule-update
+          client-payload: '{"submodule": "nicovideo4as", "sha": "${{ github.sha }}"}'
