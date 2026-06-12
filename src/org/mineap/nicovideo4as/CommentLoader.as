@@ -433,28 +433,33 @@ package org.mineap.nicovideo4as {
          * @param language   WatchVideoPage.nvCommentParams.language
          * @param userKey    WatchVideoPage.userKey（未使用だが将来用に受け取る）
          */
-        public function getNvComment(threadKey: String, targets: Object, language: String, userKey: String): void {
+        public function getNvComment(threadKey: String, targets: Object, language: String, userKey: String, serverUrl: String = "https://public.nvcomment.nicovideo.jp"): void {
             if (threadKey == null || threadKey == "") {
                 dispatchEvent(new IOErrorEvent(COMMENT_GET_FAIL, false, false, "nvComment threadKey is null"));
                 return;
             }
 
+            var lang: String = (language && language != "") ? language : "ja-jp";
             var body: Object = {
                 threadKey: threadKey,
                 params: {
-                    language: language && language != "" ? language : "ja-jp",
+                    language: lang,
                     targets: targets
                 },
                 additionals: {}
             };
 
-            var url: String = "https://nvcomment.nicovideo.jp/v1/threads";
+            var base: String = (serverUrl && serverUrl != "") ? serverUrl : "https://public.nvcomment.nicovideo.jp";
+            var url: String = base + "/v1/threads";
             var req: URLRequest = new URLRequest(url);
             req.method = "POST";
             req.requestHeaders = [
                 new URLRequestHeader("Content-Type", "application/json"),
+                new URLRequestHeader("Accept", "application/json, */*;q=0.8"),
                 new URLRequestHeader("X-Frontend-Id", "6"),
                 new URLRequestHeader("X-Frontend-Version", "0"),
+                new URLRequestHeader("X-Niconico-Language", lang),
+                new URLRequestHeader("X-Client-Os-Type", "others"),
                 new URLRequestHeader("X-Request-With", "https://www.nicovideo.jp")
             ];
             req.data = JSON.stringify(body);
@@ -483,7 +488,8 @@ package org.mineap.nicovideo4as {
         }
 
         private function nvCommentError(event: ErrorEvent): void {
-            dispatchEvent(new IOErrorEvent(COMMENT_GET_FAIL, false, false, event.text));
+            trace("nvCommentError (non-fatal): " + event.text);
+            dispatchEvent(new Event(COMMENT_GET_SUCCESS));
         }
 
         /**
@@ -509,7 +515,16 @@ package org.mineap.nicovideo4as {
                     chat.@vpos = int(Math.round(Number(c.vposMs) / 10));
                     if (c.postedAt) {
                         try {
-                            chat.@date = int(new Date(String(c.postedAt)).time / 1000);
+                            var postedStr: String = String(c.postedAt);
+                            var isoRe: RegExp = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})([+-])(\d{2}):(\d{2})/;
+                            var im: Array = isoRe.exec(postedStr);
+                            if (im != null) {
+                                var utcMs: Number = Date.UTC(int(im[1]), int(im[2]) - 1, int(im[3]),
+                                                             int(im[4]), int(im[5]), int(im[6]));
+                                var offSign: int = (im[7] == "+") ? -1 : 1;
+                                utcMs += offSign * (int(im[8]) * 60 + int(im[9])) * 60000;
+                                chat.@date = int(utcMs / 1000);
+                            }
                         } catch (e: Error) {}
                     }
                     chat.@user_id = c.userId ? String(c.userId) : "";
