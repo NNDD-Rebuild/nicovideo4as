@@ -206,18 +206,6 @@ package org.mineap.nicovideo4as {
         }
 
         /**
-         * APIアクセスの結果から取得した動画がエコノミーモードかどうか返します。
-         * @return
-         *
-         */
-        public function get economyMode(): Boolean {
-            if (this._getFlvAnalyzer == null) {
-                return false;
-            }
-            return this._getFlvAnalyzer.economyMode;
-        }
-
-        /**
          *
          *
          */

@@ -67,5 +67,11 @@ package org.mineap.nicovideo4as.model {
                     return "https://www.nicovideo.jp/ranking/genre/" + genre + "?" + options.join("&");
             }
         }
+
+        public static function getNvApiRankingUrl(genre: String, term: String): String
+        {
+            return "https://nvapi.nicovideo.jp/v1/ranking/genre/" + encodeURIComponent(genre)
+                   + "?term=" + encodeURIComponent(term) + "&pageSize=100&page=1";
+        }
     }
 }

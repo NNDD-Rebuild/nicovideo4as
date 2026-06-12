@@ -37,6 +37,7 @@ package org.mineap.nicovideo4as {
         private var _password: String = null;
         private var _otp: String = null;
         private var _deviceName: String = null;
+        private var _userSession: String = null;
 
         /**
          * ニコニコ動画のログインURLです。
@@ -261,6 +262,17 @@ package org.mineap.nicovideo4as {
                 return;
             }
 
+            for each(var cookieHeader: Object in event.responseHeaders) {
+                if (cookieHeader.name != null && (cookieHeader.name as String).toLowerCase() == "set-cookie") {
+                    var cookieStr: String = cookieHeader.value as String;
+                    var sessionMatch: Array = cookieStr.match(/user_session=([^;]+)/);
+                    if (sessionMatch != null && sessionMatch.length > 1 &&
+                        String(sessionMatch[1]).indexOf("deleted") == -1) {
+                        _userSession = sessionMatch[1];
+                    }
+                }
+            }
+
             dispatchEvent(new Event(LOGIN_SUCCESS));
         }
 
@@ -279,6 +291,10 @@ package org.mineap.nicovideo4as {
             this._loginLoader.addEventListener(IOErrorEvent.IO_ERROR, errorHandler);
             this._loginLoader.addEventListener(SecurityErrorEvent.SECURITY_ERROR, errorHandler);
             this._loginLoader.load(this._loginRequest);
+        }
+
+        public function get userSession(): String {
+            return _userSession;
         }
 
         /**

@@ -111,6 +111,45 @@ package org.mineap.nicovideo4as.analyzer {
             return _click_revision;
         }
 
+        /**
+         * nvcomment API の JSON レスポンスを解析する（新仕様）
+         * @param json nvcomment /v1/threads レスポンス全体
+         * @param loadCommentCount 取得上限数
+         */
+        public function analyzeJson(json: Object, loadCommentCount: Number = 1000): Boolean {
+            try {
+                if (json == null || json.data == null) return false;
+                var threads: Array = json.data.threads as Array;
+                if (threads == null) return false;
+
+                var commentList: Vector.<Comment> = new Vector.<Comment>();
+                for each (var thread: Object in threads) {
+                    if (thread.comments == null) continue;
+                    var comments: Array = thread.comments as Array;
+                    for each (var c: Object in comments) {
+                        var vpos: Number = Math.round(Number(c.vposMs) / 10);
+                        var body: String = c.body ? String(c.body) : "";
+                        var mail: String = (c.commands && (c.commands as Array).length > 0)
+                            ? (c.commands as Array).join(" ") : "";
+                        var userId: String = c.userId ? String(c.userId) : "";
+                        var no: Number = Number(c.no || 0);
+                        var threadId: String = thread.id ? String(thread.id) : "";
+                        var date: Number = 0;
+                        if (c.postedAt) {
+                            try { date = new Date(String(c.postedAt)).time / 1000; } catch (e: Error) {}
+                        }
+                        commentList.push(new Comment(vpos, body, mail, userId, no, threadId, date));
+                        if (commentList.length >= loadCommentCount) break;
+                    }
+                    if (commentList.length >= loadCommentCount) break;
+                }
+                this._comments = commentList;
+                return true;
+            } catch (e: Error) {
+                trace(e.getStackTrace());
+            }
+            return false;
+        }
 
     }
 }

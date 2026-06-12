@@ -27,22 +27,14 @@ package org.mineap.nicovideo4as.loader.api {
         /**
          * FLVのURLを取得する為のAPIへのアクセスを行う
          * @param videoID 動画ID
-         * @param isEconomy 強制的にエコノミーにするかどうか。swfでは無視される。
          *
          */
-        public function getAPIResult(videoID: String, isEconomy: Boolean): void {
+        public function getAPIResult(videoID: String): void {
             var variables: URLVariables = new URLVariables();
 
             //FLVのURLを取得する為にニコニコ動画のAPIにアクセスする
             if (videoID.indexOf("nm") != -1) {
-
-                //swfのとき。swfにエコノミーモードは存在しない
                 variables.as3 = "1";
-
-            } else {
-                if (isEconomy) {
-                    variables.eco = "1";
-                }
             }
 
             var getAPIRequest: URLRequest;

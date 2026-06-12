@@ -57,6 +57,8 @@ package org.mineap.nicovideo4as {
 
         private var _useOldType: Boolean = false;
 
+        private var _nvThreadId: String = null;
+
         public static const COMMENT_GET_SUCCESS: String = "CommentGetSuccess";
 
         public static const COMMENT_GET_FAIL: String = "CommentGetFail";
@@ -348,23 +350,18 @@ package org.mineap.nicovideo4as {
 
         /**
          * APIの結果から取得したthreadIdを返します。
+         * nvComment API 使用時は nvCommentComplete() で設定した _nvThreadId を返します。
          * @return
          *
          */
         public function get threadId(): String {
-            return this._getflvAnalyzer.threadId;
-        }
-
-        /**
-         * APIアクセスの結果から現在エコノミーモードかどうかを返します。
-         * @return エコノミーモードのときtrue
-         *
-         */
-        public function get economyMode(): Boolean {
-            if (this._getflvAnalyzer == null) {
-                return false;
+            if (this._nvThreadId != null) {
+                return this._nvThreadId;
             }
-            return this._getflvAnalyzer.economyMode;
+            if (this._getflvAnalyzer == null) {
+                return "";
+            }
+            return this._getflvAnalyzer.threadId;
         }
 
         /**
@@ -426,6 +423,113 @@ package org.mineap.nicovideo4as {
          */
         public function set threadKeyAccessApiUrl(url: String): void {
             this._apiGetThreadkeyAccess.url = url;
+        }
+
+        /**
+         * nvcomment API でコメントを取得する（新仕様）。
+         *
+         * @param threadKey  WatchVideoPage.nvCommentThreadKey
+         * @param targets    WatchVideoPage.nvCommentParams.targets ([{id,fork},...])
+         * @param language   WatchVideoPage.nvCommentParams.language
+         * @param userKey    WatchVideoPage.userKey（未使用だが将来用に受け取る）
+         */
+        public function getNvComment(threadKey: String, targets: Object, language: String, userKey: String): void {
+            if (threadKey == null || threadKey == "") {
+                dispatchEvent(new IOErrorEvent(COMMENT_GET_FAIL, false, false, "nvComment threadKey is null"));
+                return;
+            }
+
+            var body: Object = {
+                threadKey: threadKey,
+                params: {
+                    language: language && language != "" ? language : "ja-jp",
+                    targets: targets
+                },
+                additionals: {}
+            };
+
+            var url: String = "https://nvcomment.nicovideo.jp/v1/threads";
+            var req: URLRequest = new URLRequest(url);
+            req.method = "POST";
+            req.requestHeaders = [
+                new URLRequestHeader("Content-Type", "application/json"),
+                new URLRequestHeader("X-Frontend-Id", "6"),
+                new URLRequestHeader("X-Frontend-Version", "0"),
+                new URLRequestHeader("X-Request-With", "https://www.nicovideo.jp")
+            ];
+            req.data = JSON.stringify(body);
+
+            this._commentLoader = new URLLoader();
+            this._commentLoader.dataFormat = URLLoaderDataFormat.TEXT;
+            this._commentLoader.addEventListener(Event.COMPLETE, nvCommentComplete);
+            this._commentLoader.addEventListener(IOErrorEvent.IO_ERROR, nvCommentError);
+            this._commentLoader.addEventListener(SecurityErrorEvent.SECURITY_ERROR, nvCommentError);
+            this._commentLoader.addEventListener(HTTPStatusEvent.HTTP_RESPONSE_STATUS,
+                function(e: HTTPStatusEvent): void { dispatchEvent(e); }
+            );
+            this._commentLoader.load(req);
+        }
+
+        private function nvCommentComplete(event: Event): void {
+            try {
+                var json: Object = JSON.parse((event.currentTarget as URLLoader).data);
+                this._xml = convertNvCommentToXml(json);
+                this._commentAnalyzer = new CommentAnalyzer();
+                this._commentAnalyzer.analyzeJson(json);
+                dispatchEvent(new Event(COMMENT_GET_SUCCESS));
+            } catch (e: Error) {
+                dispatchEvent(new IOErrorEvent(COMMENT_GET_FAIL, false, false, e.message));
+            }
+        }
+
+        private function nvCommentError(event: ErrorEvent): void {
+            dispatchEvent(new IOErrorEvent(COMMENT_GET_FAIL, false, false, event.text));
+        }
+
+        /**
+         * nvcomment JSON レスポンスを旧 XML chat 形式に変換する（後方互換性のため）。
+         * 旧形式: <packet><chat thread="..." no="1" vpos="100" date="..." user_id="..." ...>本文</chat></packet>
+         */
+        private function convertNvCommentToXml(json: Object): XML {
+            var packet: XML = new XML("<packet/>");
+            if (json == null || json.data == null || json.data.threads == null) return packet;
+
+            var threads: Array = json.data.threads as Array;
+            for each (var thread: Object in threads) {
+                if (thread.comments == null) continue;
+                // 最初のアクティブスレッドの ID を _nvThreadId として保存
+                if (this._nvThreadId == null && thread.id) {
+                    this._nvThreadId = String(thread.id);
+                }
+                var comments: Array = thread.comments as Array;
+                for each (var c: Object in comments) {
+                    var chat: XML = new XML("<chat/>");
+                    chat.@thread = thread.id ? String(thread.id) : "";
+                    chat.@no = int(c.no || 0);
+                    chat.@vpos = int(Math.round(Number(c.vposMs) / 10));
+                    if (c.postedAt) {
+                        try {
+                            chat.@date = int(new Date(String(c.postedAt)).time / 1000);
+                        } catch (e: Error) {}
+                    }
+                    chat.@user_id = c.userId ? String(c.userId) : "";
+                    chat.@premium = Boolean(c.isPremium) ? 1 : 0;
+                    if (c.commands && (c.commands as Array).length > 0) {
+                        chat.@mail = (c.commands as Array).join(" ");
+                    }
+                    if (thread.fork == "owner") {
+                        chat.@fork = 1;
+                    }
+                    if (c.anonymity) {
+                        chat.@anonymity = 1;
+                    }
+                    var body: String = c.body ? String(c.body) : "";
+                    // 特殊文字をエスケープして XML テキストノードとして追加
+                    chat.appendChild(body.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"));
+                    packet.appendChild(chat);
+                }
+            }
+            return packet;
         }
 
     }

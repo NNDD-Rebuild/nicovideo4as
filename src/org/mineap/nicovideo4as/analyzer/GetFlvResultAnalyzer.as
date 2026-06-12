@@ -83,12 +83,6 @@ package org.mineap.nicovideo4as.analyzer {
         public static const NG_UP_KEY: String = "ng_up";
 
         /**
-         * エコノミーモード(低画質モード)の検出
-         */
-        public static const LOW_MODE: String = "low";
-
-
-        /**
          * FMSに接続するためのトークン
          */
         public static const FMS_TOKEN: String = "fmst";
@@ -120,8 +114,6 @@ package org.mineap.nicovideo4as.analyzer {
         private var _feedrev: String = null;
 
         private var _ng_ups: Vector.<NgUp> = new Vector.<NgUp>();
-
-        private var _economyMode: Boolean = false;
 
         private var _result: String = null;
 
@@ -208,9 +200,6 @@ package org.mineap.nicovideo4as.analyzer {
                 this._threadId = variables[THREAD_ID_KEY];
                 this._l = variables[L_KEY];
                 this._url = variables[VIDEO_URL_KEY];
-                if (url != null && this._url.indexOf(LOW_MODE) != -1) {
-                    this._economyMode = true;
-                }
                 this._link = variables[SMILE_VIDEO_LINK_KEY];
                 this._ms = variables[MESSAGE_SERVER_URL_KEY];
                 this._userId = variables[USER_ID_KEY];
@@ -326,10 +315,6 @@ package org.mineap.nicovideo4as.analyzer {
 
         public function get ng_ups(): Vector.<NgUp> {
             return _ng_ups;
-        }
-
-        public function get economyMode(): Boolean {
-            return _economyMode;
         }
 
         public function get fmsToken(): String {

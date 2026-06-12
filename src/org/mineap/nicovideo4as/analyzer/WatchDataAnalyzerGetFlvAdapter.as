@@ -178,10 +178,6 @@ package org.mineap.nicovideo4as.analyzer {
             return new Vector.<NgUp>();
         }
 
-        override public function get economyMode(): Boolean {
-            return false;
-        }
-
         override public function get fmsToken(): String {
             return "";
         }

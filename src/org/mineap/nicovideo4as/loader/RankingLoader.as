@@ -7,7 +7,7 @@ package org.mineap.nicovideo4as.loader {
     import flash.events.SecurityErrorEvent;
     import flash.net.URLLoader;
     import flash.net.URLRequest;
-    import flash.net.URLRequest;
+    import flash.net.URLRequestHeader;
     import flash.net.URLVariables;
 
     import org.mineap.nicovideo4as.model.NicoRankingUrl;
@@ -41,14 +41,30 @@ package org.mineap.nicovideo4as.loader {
          *
          */
         public function getRanking(term: String, genre: String = "all", tag: String = null, pageCount: int = 1): void {
-            var request: URLRequest = new URLRequest(NicoRankingUrl.getNicoRankingUrl(genre, term, tag, true));
-
-            var variables: URLVariables = new URLVariables();
-            if (pageCount > 1) {
-                variables.page = pageCount;
+            var request: URLRequest;
+            if (term === NicoRankingUrl.NEW_ARRIVAL) {
+                request = new URLRequest(NicoRankingUrl.getNicoRankingUrl(genre, term, tag, true));
+                var variables: URLVariables = new URLVariables();
+                if (pageCount > 1) {
+                    variables.page = pageCount;
+                }
+                request.data = variables;
+                request.requestHeaders = [
+                    new URLRequestHeader("X-Frontend-Id", "6"),
+                    new URLRequestHeader("X-Frontend-Version", "0"),
+                    new URLRequestHeader("X-Client-Os-Type", "others"),
+                    new URLRequestHeader("X-Niconico-Language", "ja-jp")
+                ];
+            } else {
+                request = new URLRequest(NicoRankingUrl.getNvApiRankingUrl(genre, term));
+                request.requestHeaders = [
+                    new URLRequestHeader("X-Frontend-Id", "6"),
+                    new URLRequestHeader("X-Frontend-Version", "0"),
+                    new URLRequestHeader("X-Client-Os-Type", "others"),
+                    new URLRequestHeader("X-Niconico-Language", "ja-jp"),
+                    new URLRequestHeader("Accept", "application/json, */*;q=0.8")
+                ];
             }
-
-            request.data = variables;
             this.load(request);
         }
     }
