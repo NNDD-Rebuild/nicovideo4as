@@ -26,8 +26,6 @@ package org.mineap.nicovideo4as {
         /** 後方互換用。直接URLとしては使わず参照用のみ。 */
         public static const WATCH_VIDEO_PAGE_URL: String = "https://www.nicovideo.jp/watch/";
 
-        private static const WATCH_API_URL: String = "https://www.nicovideo.jp/api/watch/v3/";
-
         public static const WATCH_SUCCESS: String = "WatchSuccess";
 
         public static const WATCH_FAIL: String = "WatchFail";
@@ -53,7 +51,9 @@ package org.mineap.nicovideo4as {
             this._videoId = videoId;
 
             var actionTrackId: String = generateActionTrackId();
-            var mUrl: String = WATCH_API_URL + encodeURIComponent(videoId) + "?actionTrackId=" + actionTrackId;
+            // /api/watch/v3/{id} は現在ニコニコ側で UNAUTHORIZED(400) を返す (直接叩き不可に変更された模様)。
+            // HTML watchページを直接取得し、埋め込み server-response meta から動画情報を得る (createJsonObject の fallback #2)。
+            var mUrl: String = WATCH_VIDEO_PAGE_URL + encodeURIComponent(videoId) + "?actionTrackId=" + actionTrackId;
 
             var watchURL: URLRequest = new URLRequest(mUrl);
             watchURL.method = "GET";
@@ -211,7 +211,12 @@ package org.mineap.nicovideo4as {
                     try {
                         var decoded: String = htmlDecode(contentMatch[2]);
                         var metaObj: Object = JSON.parse(decoded);
-                        if (metaObj.data != null) return metaObj.data;
+                        // HTML埋め込み server-response は {"data":{"metadata":..,"response":{video/owner/media/comment等}}} と
+                        // 一段深くネストされている (v3 API直レスポンスの data は response の中身と同一構造)。
+                        if (metaObj.data != null) {
+                            if (metaObj.data.response != null) return metaObj.data.response;
+                            return metaObj.data;
+                        }
                         if (metaObj.response != null) return metaObj.response;
                         return metaObj;
                     } catch (e2: Error) {}
@@ -322,6 +327,15 @@ package org.mineap.nicovideo4as {
 
         public function get isHTML5(): Boolean {
             return this._isHTML5;
+        }
+
+        /**
+         * DMSセッション作成API (access-rights/hls) の actionTrackId に使うサーバー発行トラックID。
+         * クライアント側で生成したactionTrackIdでは INVALID_PARAMETER になる。
+         */
+        public function get watchTrackId(): String {
+            if (_jsonObj == null || _jsonObj.client == null) return null;
+            return String(_jsonObj.client.watchTrackId);
         }
 
         public function get isFlash(): Boolean {

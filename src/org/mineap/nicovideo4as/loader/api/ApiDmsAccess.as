@@ -7,13 +7,18 @@ package org.mineap.nicovideo4as.loader.api {
         private static const BASE_URL: String =
             "https://nvapi.nicovideo.jp/v1/watch/";
 
+        /**
+         * @param actionTrackId watchページ取得時にサーバーが発行した watchTrackId
+         *   (WatchVideoPage.watchTrackId)。クライアント側で自前生成したIDを使うと
+         *   INVALID_PARAMETER(400)になる。
+         */
         public function createDmsSession(
             videoId: String,
             accessRightKey: String,
             videoStreamId: String,
-            audioStreamId: String
+            audioStreamId: String,
+            actionTrackId: String
         ): void {
-            var actionTrackId: String = generateActionTrackId();
             var req: URLRequest = new URLRequest(
                 BASE_URL + encodeURIComponent(videoId) + "/access-rights/hls?actionTrackId=" + actionTrackId
             );
@@ -21,23 +26,15 @@ package org.mineap.nicovideo4as.loader.api {
             req.data = JSON.stringify({"outputs": [[videoStreamId, audioStreamId]]});
             req.requestHeaders = [
                 new URLRequestHeader("X-Access-Right-Key", accessRightKey),
-                new URLRequestHeader("X-Request-With", "https://www.nicovideo.jp"),
+                // 実ブラウザはこのAPI呼び出し時 "nicovideo" 固定文字列を送る
+                // (視聴ログ用heartbeat呼び出し時のみ Referer相当のURLを送る)。
+                new URLRequestHeader("X-Request-With", "nicovideo"),
                 new URLRequestHeader("X-Frontend-Id", "6"),
                 new URLRequestHeader("X-Frontend-Version", "0"),
-                new URLRequestHeader("X-Niconico-Language", "ja-jp"),
                 new URLRequestHeader("Content-Type", "application/json"),
-                new URLRequestHeader("Accept", "application/json")
+                new URLRequestHeader("Accept", "application/json;charset=utf-8")
             ];
             this.load(req);
-        }
-
-        private function generateActionTrackId(): String {
-            const chars: String = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-            var rand: String = "";
-            for (var i: int = 0; i < 10; i++) {
-                rand += chars.charAt(int(Math.random() * chars.length));
-            }
-            return rand + "_" + new Date().getTime().toString();
         }
     }
 }
