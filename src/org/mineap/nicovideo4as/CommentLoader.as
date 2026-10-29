@@ -432,8 +432,9 @@ package org.mineap.nicovideo4as {
          * @param targets    WatchVideoPage.nvCommentParams.targets ([{id,fork},...])
          * @param language   WatchVideoPage.nvCommentParams.language
          * @param userKey    WatchVideoPage.userKey（未使用だが将来用に受け取る）
+         * @param when       過去ログを取得する場合の基準日時（この時刻以前のコメントを取得する）。nullなら最新
          */
-        public function getNvComment(threadKey: String, targets: Object, language: String, userKey: String, serverUrl: String = "https://public.nvcomment.nicovideo.jp"): void {
+        public function getNvComment(threadKey: String, targets: Object, language: String, userKey: String, serverUrl: String = "https://public.nvcomment.nicovideo.jp", when: Date = null): void {
             if (threadKey == null || threadKey == "") {
                 dispatchEvent(new IOErrorEvent(COMMENT_GET_FAIL, false, false, "nvComment threadKey is null"));
                 return;
@@ -446,7 +447,8 @@ package org.mineap.nicovideo4as {
                     language: lang,
                     targets: targets
                 },
-                additionals: {}
+                // 過去ログは additionals.when(UNIX秒)で指定する。旧 waybackkey は不要
+                additionals: when != null ? {when: int(when.time / 1000)} : {}
             };
 
             var base: String = (serverUrl && serverUrl != "") ? serverUrl : "https://public.nvcomment.nicovideo.jp";

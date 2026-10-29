@@ -10,7 +10,7 @@ package org.mineap.nicovideo4as.loader {
      */
     public class ThumbInfoLoader extends URLLoader {
 
-        public static const NICO_VIDEO_THUMB_INFO_GET_API: String = "http://ext.nicovideo.jp/api/getthumbinfo/";
+        public static const NICO_VIDEO_THUMB_INFO_GET_API: String = "https://ext.nicovideo.jp/api/getthumbinfo/";
 
         public function ThumbInfoLoader(urlRequest: URLRequest = null) {
             if (urlRequest != null) {

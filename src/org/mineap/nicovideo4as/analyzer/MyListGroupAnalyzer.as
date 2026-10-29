@@ -13,10 +13,6 @@ package org.mineap.nicovideo4as.analyzer {
 
         public static const ERROR: String = "error";
 
-        private var _idPattern: RegExp = new RegExp("\"id\":\"([\\d]+)\"", "ig");
-
-        private var _statusPattern: RegExp = new RegExp("\"status\":\"([^\"]*)\"", "ig");
-
         private var _result: String = null;
 
         private var _myListIds: Vector.<String> = new Vector.<String>();
@@ -29,44 +25,35 @@ package org.mineap.nicovideo4as.analyzer {
         }
 
         /**
-         * 渡されたMyListGroup取得APIの実行結果を解析します。
+         * 渡されたマイリスト一覧API(nvapi /v1/users/me/mylists)の実行結果を解析します。
+         * レスポンス: {"meta":{"status":200},"data":{"mylists":[{"id":12345,"name":"...",...}]}}
          *
          * @param data
          *
          */
         public function analyzer(data: String): void {
-
+            this._result = ERROR;
             if (data == null) {
-                this._result = ERROR;
                 return;
             }
 
-            var result: Array = this._statusPattern.exec(data);
-
-            if (result != null && result.length > 1) {
-                var status: String = result[1];
-                if (status == OK) {
-                    result = data.match(this._idPattern);
-                    if (result != null) {
-                        for each(var str: String in result) {
-                            this._idPattern.lastIndex = 0;
-                            var obj: Array = this._idPattern.exec(str);
-                            if (obj != null && obj.length > 1) {
-                                var id: String = obj[1];
-                                this._myListIds.splice(0, 0, id);
-                            }
-                        }
-                        this._result = OK;
-                    } else {
-                        this._result = ERROR;
-                    }
-                } else {
-                    this._result = ERROR;
+            try {
+                var json: Object = JSON.parse(data);
+                if (json.meta == null || int(json.meta.status) != 200) {
+                    return;
                 }
+                if (json.data == null || !(json.data.mylists is Array)) {
+                    return;
+                }
+                for each(var mylist: Object in (json.data.mylists as Array)) {
+                    if (mylist != null && mylist.id != null) {
+                        this._myListIds.push(String(mylist.id));
+                    }
+                }
+                this._result = OK;
+            } catch (error: Error) {
+                trace(error.getStackTrace());
             }
-
-            return;
-
         }
 
         /**

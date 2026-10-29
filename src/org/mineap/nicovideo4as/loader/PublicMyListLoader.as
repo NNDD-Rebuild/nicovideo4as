@@ -41,6 +41,7 @@ package org.mineap.nicovideo4as.loader {
             var url: String = MYLIST_API_URL + myListId + "?pageSize=" + PAGE_SIZE + "&page=" + page;
             var request: URLRequest = new URLRequest(url);
             request.requestHeaders = buildHeaders(userSession);
+            applyCookieMode(request, userSession);
             this.load(request);
         }
 
@@ -48,6 +49,7 @@ package org.mineap.nicovideo4as.loader {
             var url: String = MYLIST_API_URL_V2 + myListId + "?pageSize=" + PAGE_SIZE + "&page=" + page;
             var request: URLRequest = new URLRequest(url);
             request.requestHeaders = buildHeaders(userSession);
+            applyCookieMode(request, userSession);
             this.load(request);
         }
 
@@ -57,8 +59,19 @@ package org.mineap.nicovideo4as.loader {
             var request: URLRequest = new URLRequest(url);
             if (userSession != null) {
                 request.requestHeaders = [new URLRequestHeader("Cookie", "user_session=" + userSession)];
+                applyCookieMode(request, userSession);
             }
             this.load(request);
+        }
+
+        /**
+         * user_session を Cookie ヘッダで手動指定するときは、manageCookies を false にする。
+         * true(既定)のままだと AIR は手動の Cookie ヘッダを送らず、認証されない(401/403になる)。
+         */
+        private function applyCookieMode(request: URLRequest, userSession: String): void {
+            if (userSession != null) {
+                request.manageCookies = false;
+            }
         }
 
         private function buildHeaders(userSession: String = null): Array {

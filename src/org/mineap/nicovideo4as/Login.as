@@ -9,6 +9,7 @@ package org.mineap.nicovideo4as {
     import flash.net.Socket;
     import flash.net.URLLoader;
     import flash.net.URLRequest;
+    import flash.net.URLRequestHeader;
     import flash.net.URLRequestMethod;
     import flash.net.URLVariables;
     import flash.utils.Timer;
@@ -38,6 +39,13 @@ package org.mineap.nicovideo4as {
         private var _otp: String = null;
         private var _deviceName: String = null;
         private var _userSession: String = null;
+
+        /**
+         * ブラウザでログインして取得した user_session。
+         * ログイン API が使えなくなったため、手動で取り込んだ値をここに保持する。
+         * 値があるとき、ユーザー名・パスワード無しの login() は NO_LOGIN ではなくログイン成功として扱う。
+         */
+        private static var _manualUserSession: String = null;
 
         /**
          * ニコニコ動画のログインURLです。
@@ -114,6 +122,12 @@ package org.mineap.nicovideo4as {
             this._deviceName = deviceName;
 
             if (!this._user && !this._password) {
+                if (_manualUserSession != null) {
+                    trace("user_session でログイン");
+                    this._userSession = _manualUserSession;
+                    dispatchEvent(new Event(LOGIN_SUCCESS));
+                    return;
+                }
                 trace("ログインしない");
                 dispatchEvent(new Event(NO_LOGIN));
                 return;
@@ -158,6 +172,7 @@ package org.mineap.nicovideo4as {
          */
         public function logout(): void {
             if (!this._user && !this._password) {
+                _manualUserSession = null;
                 trace("ログインせず利用");
                 dispatchEvent(new Event(LOGOUT_COMPLETE));
                 return;
@@ -295,6 +310,68 @@ package org.mineap.nicovideo4as {
 
         public function get userSession(): String {
             return _userSession;
+        }
+
+        /**
+         * 手動で取り込んだ user_session。無ければ null。
+         * 値の前後の空白、"user_session=" 接頭辞、末尾の ";"、引用符は取り除いて保持する。
+         */
+        public static function get manualUserSession(): String {
+            return _manualUserSession;
+        }
+
+        public static function set manualUserSession(value: String): void {
+            _manualUserSession = normalizeUserSession(value);
+        }
+
+        /**
+         * 貼り付けられた文字列から user_session の値だけを取り出す。有効な値が無ければ null。
+         */
+        public static function normalizeUserSession(value: String): String {
+            if (value == null) {
+                return null;
+            }
+            var v: String = value.replace(/^\s+|\s+$/g, "");
+            v = v.replace(/^user_session=/i, "");
+            v = v.replace(/;.*$/, "");
+            v = v.replace(/^["']+|["']+$/g, "");
+            v = v.replace(/^\s+|\s+$/g, "");
+            if (v.length == 0 || v.search(/[\s,]/) != -1 || v.indexOf("deleted") != -1) {
+                return null;
+            }
+            return v;
+        }
+
+        /**
+         * 手動取り込みの user_session があれば、Cookie ヘッダを返す。無ければ null。
+         * ログイン済みとして通信するリクエストに付ける。
+         */
+        /**
+         * 認証済みとして通信できるか。メールアドレス・パスワードが揃っているか、user_session を取り込み済みなら true。
+         * 「ユーザー名が空なら未ログイン」という判定は、user_session でログインした場合に誤るので、この関数を使う。
+         */
+        public static function canAuthenticate(user: String, password: String): Boolean {
+            return (user != null && user != "" && password != null && password != "") || _manualUserSession != null;
+        }
+
+        public static function applySessionTo(request: URLRequest): Boolean {
+            if (_manualUserSession == null) {
+                return false;
+            }
+            // AIR は manageCookies が true(既定)だと、手動で付けた Cookie ヘッダを送らない。
+            // user_session を手動で付けるリクエストは manageCookies を false にする(その代わり Set-Cookie は保存されない)。
+            request.manageCookies = false;
+            var headers: Array = request.requestHeaders != null ? request.requestHeaders : [];
+            headers.push(new URLRequestHeader("Cookie", "user_session=" + _manualUserSession));
+            request.requestHeaders = headers;
+            return true;
+        }
+
+        public static function createCookieHeader(): URLRequestHeader {
+            if (_manualUserSession == null) {
+                return null;
+            }
+            return new URLRequestHeader("Cookie", "user_session=" + _manualUserSession);
         }
 
         /**

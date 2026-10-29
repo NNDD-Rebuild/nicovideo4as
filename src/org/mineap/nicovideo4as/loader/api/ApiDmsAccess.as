@@ -34,6 +34,8 @@ package org.mineap.nicovideo4as.loader.api {
                 new URLRequestHeader("Content-Type", "application/json"),
                 new URLRequestHeader("Accept", "application/json;charset=utf-8")
             ];
+            // Cookie 管理は AIR に任せる。レスポンスの domand_bid が CDN への視聴許可になるため、
+            // manageCookies を false にして user_session を手動で付けると、再生用の CDN リクエストが拒否される。
             this.load(req);
         }
     }
